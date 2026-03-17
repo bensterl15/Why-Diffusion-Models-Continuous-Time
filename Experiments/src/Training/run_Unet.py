@@ -26,6 +26,7 @@ parser.add_argument("-LR", "--learning_rate", help="Learning rate for optimizati
 parser.add_argument("-O", "--optim", help="Optimisation type (SGD_Momentum or Adam)", type=str)
 parser.add_argument("-W", "--nbase", help="Number of base filters", type=str)
 parser.add_argument("-t", "--time", help="Diffusion timestep", type=int)
+parser.add_argument("-m", "--model_order", help="Order of the model", type=int)
 args = vars(parser.parse_args())
 print(args)
 
@@ -37,6 +38,7 @@ lr = args['learning_rate']
 optim = args['optim']
 n_base = int(args['nbase'])
 time_step = args['time']
+model_order = args['model_order']
 if time_step == -1:
     mode = 'normal'
 else:
@@ -45,6 +47,7 @@ else:
 # Overwrite config with command line arguments
 DATASET = 'CelebA'
 config = cfg.load_config(DATASET)
+config.model_order = model_order
 config.IMG_SHAPE = (1, size, size)
 config.n_images = n
 config.BATCH_SIZE = min(512, n)
@@ -54,13 +57,13 @@ config.mode = mode
 config.time_step = time_step
 
 if config.mode == 'normal':
-    suffix = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_index{:d}/'.format(config.DATASET, size,
+    suffix = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_mo{:d}_index{:d}/'.format(config.DATASET, size,
                                         config.n_images, n_base, config.OPTIM, config.BATCH_SIZE,
-                                        config.LR, index)
+                                        config.LR, config.model_order, index)
 elif config.mode == 'fixed_time':
-    suffix = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_index{:d}_t{:d}/'.format(config.DATASET, size,
+    suffix = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_mo{:d}_index{:d}_t{:d}/'.format(config.DATASET, size,
                                         config.n_images, n_base, config.OPTIM, config.BATCH_SIZE,
-                                        config.LR, index, time_step)
+                                        config.LR, config.model_order, index, time_step)
     print('Training at fixed diffusion time: {:d}'.format(config.time_step))
 
 # Create path to images and model save
@@ -112,7 +115,7 @@ plt.savefig(path_images + 'Training_set.pdf',
 
 if __name__ == '__main__':
     model = Unet.UNet(
-        input_channels          = config.IMG_SHAPE[0],
+        input_channels          = model_order * config.IMG_SHAPE[0],
         output_channels         = config.IMG_SHAPE[0],
         base_channels           = n_base,
         base_channels_multiples = (1, 2, 4),

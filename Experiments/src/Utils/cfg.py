@@ -25,7 +25,7 @@ def load_config(DATASET):
         config.time_step = -1
         config.DEVICE = 'cuda:0'
         config.TIMESTEPS = 1000
-        
+        config.model_order = 2
     else:
         raise Exception('Dataset {:s} not implemented'.format(DATASET))
     return config
