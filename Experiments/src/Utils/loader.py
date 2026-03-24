@@ -97,6 +97,14 @@ def load_CelebA(config, loadtest=False, ntest=2048, index=0):
         mean = torch.mean(t_data, axis=[0, 2, 3])
         if config.STANDARDIZE:
             std = torch.std(t_data, axis=[0, 2, 3])
+
+        print("CelebA train mean:", mean)
+        print("CelebA train std:", std)
+        torch.save(
+            {"mean": mean, "std": std},
+            os.path.join(config.path_save, f"celeba_stats_index{index}.pt"),
+        )
+
         
         transform = transforms.Compose(
             [transforms.ToTensor(),
@@ -173,6 +181,14 @@ def load_CelebA_pt(config, full_tensor, loadtest=False, ntest=2048, index=0):
         if config.STANDARDIZE:
             std = torch.std(train_images, axis=[0, 2, 3])
         
+        print("CelebA train mean:", mean)
+        print("CelebA train std:", std)
+        torch.save(
+            {"mean": mean, "std": std},
+            os.path.join(config.path_save, f"celeba_stats_index{index}.pt"),
+        )
+
+
         transform = transforms.Compose(
             [transforms.Normalize(mean, std),])
         

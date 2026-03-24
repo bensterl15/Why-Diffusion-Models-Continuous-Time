@@ -87,6 +87,7 @@ os.system('cp ../Utils/cfg.py {:s}'.format(path_models + '_cfg.py'))
 # Torch Tensor version
 train_images, testset = cfg.load_training_data(config, index, loadtest=False)
 
+exit()
 # In[]
 
 if __name__ == '__main__':

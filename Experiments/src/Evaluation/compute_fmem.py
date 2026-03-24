@@ -170,7 +170,8 @@ def main():
     
     # Define training times to analyze
     training_times = cfg.get_training_times()
-    
+    training_times = training_times[training_times > 1330000]
+
     print(f"Computing memorization fraction for {len(training_times)} checkpoints...")
     print(f"Model: {type_model}")
     print(f"Output file: {file_fc}")

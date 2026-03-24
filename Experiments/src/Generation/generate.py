@@ -109,14 +109,26 @@ for (j, checkpoint_id) in enumerate(training_times):
 
     print('Sample {:d}/{:d}'.format(i, Ns))
 
-    samples_gen, samples_init = Diffusion.sample_diffusion_from_noise_DDIM(model_diffusion,
+    stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index{index}.pt"), map_location=config.DEVICE)
+    config.mean = stats["mean"]
+    config.std = stats["std"]
+
+
+    samples_gen, samples_init = Diffusion.sample_diffusion_from_noise(model_diffusion,
                                         n_images=batch_gen,
                                         config=config,
                                         df=df,
-                                        dim=4,
-                                        eta=0.0,            # Deterministic trajectories
-                                        ddim_steps=100)     # Number of steps reduced (much faster)
-    
+                                        dim=4)
+    #                                    eta=0.0,            # Deterministic trajectories
+    #                                    ddim_steps=100)     # Number of steps reduced (much faster)
+    # Convert from standardized space back to raw data space
+    if getattr(config, "STANDARDIZE", False):
+        print("CENTER:", config.CENTER, "STANDARDIZE:", config.STANDARDIZE)
+        print("mean:", config.mean, "std:", config.std, flush=True)
+        mean = torch.as_tensor(config.mean, device=samples_gen.device)[..., None, None]
+        std  = torch.as_tensor(config.std,  device=samples_gen.device)[..., None, None]
+        samples_gen = samples_gen * std + mean
+
     # Save initial samples
     path = path_save + str(config.TIMESTEPS)
     # Create dir if does not exist

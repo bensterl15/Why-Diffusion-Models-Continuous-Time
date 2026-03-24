@@ -163,7 +163,7 @@ def main():
     
     # Define training times to analyze
     training_times = cfg.get_training_times()
-    training_times = training_times[training_times > 106000]
+    training_times = training_times[training_times > 1292000]
 
     # Load training data (for consistency, though not used in FID computation)
     train_images, _ = cfg.load_training_data(config, args.index)

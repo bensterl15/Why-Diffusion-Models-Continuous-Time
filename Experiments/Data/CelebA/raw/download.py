@@ -24,7 +24,7 @@ ds = CelebA(
     split="train",
     target_type="attr",   # required; will be ignored
     transform=transform,
-    download=False,       # you already downloaded with this script
+    download=True,       # you already downloaded with this script
 )
 
 loader = DataLoader(ds, batch_size=512, shuffle=False, num_workers=4)
