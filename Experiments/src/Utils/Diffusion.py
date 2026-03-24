@@ -313,54 +313,40 @@ def train(model, trainloader, optimizer, config, df, loss_fn,
 @torch.no_grad()
 def sample_diffusion_from_noise_DDIM(model, n_images=25, config=TrainingConfig(), 
                                 df=DiffusionConfig(), dim=3, eta=0.0, ddim_steps=None):
-    """
-    Generates images using the DDIM sampling procedure with a subsampled schedule.
+    if n is None:
+        HOLD_init(config.model_order)
+
+    # Generate n_images starting points from N(0, 1)
+    if dim == 4: # Assumes [B, C, H, W] for 2d
+        shape = (n_images, n, config.IMG_SHAPE[0], config.IMG_SHAPE[1], config.IMG_SHAPE[2])
+        x_init = torch.randn(shape).to(config.DEVICE)
+    elif dim == 3: # Assumes [B, C, N] for 1d
+        shape = (n_images, n, config.IMG_SHAPE[0], config.IMG_SHAPE[1])
+        x_init = torch.randn(shape).to(config.DEVICE)
+    elif dim == 2: # Assumes [B, N] for 1d (no channels)
+        shape = (n_images, n * config.IMG_SHAPE[0], config.IMG_SHAPE[1])
+        x_init = torch.randn(shape).to(config.DEVICE)
+
+    x = math.sqrt(L_inv) * x_init.clone()
     
-    Parameters:
-      model: The noise prediction network.
-      n_images: Number of images to generate.
-      config: TrainingConfig with attributes such as IMG_SHAPE, TIMESTEPS, DEVICE, etc.
-      df: DiffusionConfig with diffusion schedule tensors
-      dim: Dimensionality of the tensor (e.g., 2 for [B, N], 3 for [B, C, N], 4 for [B, C, H, W]).
-      eta: Hyperparameter controlling stochasticity (eta=0 yields a deterministic process).
-      ddim_steps: Number of steps S to use for sampling. If None, use all timesteps.
-    
-    Returns:
-      x: The final generated images.
-      x_init: The initial noise samples.
-    """
-    # Determine the number of steps to use
-    total_steps = N_STEPS
-    if ddim_steps is None:
-        ddim_steps = total_steps
-
-    # Create a schedule of timesteps (linearly spaced and then reversed)
-    time_steps = np.linspace(0, total_steps - 1, ddim_steps, dtype=int)[::-1]
-    time_steps = list(time_steps)
-
-    # Generate initial noise
-    if dim == 4:  # Assumes [B, C, H, W] for 2D images
-        x_init = torch.randn(n_images, config.IMG_SHAPE[0], config.IMG_SHAPE[1],
-                             config.IMG_SHAPE[2]).to(config.DEVICE)
-    elif dim == 3:  # Assumes [B, C, N] for 1D signals with channels
-        x_init = torch.randn(n_images, config.IMG_SHAPE[0],
-                             config.IMG_SHAPE[1]).to(config.DEVICE)
-    elif dim == 2:  # Assumes [B, N] for 1D signals (no channels)
-        x_init = torch.randn(n_images, config.IMG_SHAPE[1]).to(config.DEVICE)
-    x = x_init.clone()
-
     model.eval()
-    dt = torch.tensor(1.0 / ddim_steps, device=config.DEVICE, dtype=torch.float32)
-    for t in tqdm(reversed(range(1, ddim_steps + 1)), desc='Sampling', leave=True):
+    dt = torch.tensor(hold_T / 100, device=config.DEVICE, dtype=torch.float32)
+    d_coef = 2 * xi * L_inv * dt
+    for t in tqdm(reversed(range(1, 101))):
         # Time tensor
-        ts = torch.ones(n_images, dtype=torch.long, device=config.DEVICE) * t / ddim_steps
+        ts = torch.ones(n_images, dtype=torch.long, device=config.DEVICE) * hold_T * t / 100
+
+        # Generate one realisation of the noise
+        #z = torch.randn((n_images, *data_shape), device=device) if t > 0 else torch.zeros((n_images, *data_shape), device=device)
         
         # Predict the noise at times ts
-        score = model(x, ts)
-        
-        # Get scaling quantities
-        beta_t = df.beta(ts).view(n_images, 1, 1, 1) if dim == 4 else df.beta(ts).view(n_images, 1, 1) if dim == 3 else df.beta(ts).view(n_images, 1)
-        
-        # Langevin sampling from VPSDE:
-        x = x + beta_t * (x + score) * dt / 2
+        score = model(x.view(-1, n, 32, 32).float(), ts)
+        #print(f'F_matrix shape: {F_matrix.shape}, score shape: {score.shape}', flush=True)
+        x -= torch.einsum("ij, bj...->bi...", F_matrix, x) * dt
+        drift_diff = d_coef*score/2 # + torch.sqrt(d_coef) * z
+        x[:, -1, ...] += drift_diff
+
+    x_init = x_init[:, 0].view(-1, *config.IMG_SHAPE)
+    x = x[:, 0].view(-1, *config.IMG_SHAPE)
+
     return x, x_init

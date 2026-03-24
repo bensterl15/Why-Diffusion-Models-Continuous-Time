@@ -70,6 +70,7 @@ def parse_arguments():
     parser.add_argument("-W", "--nbase", help="Number of base filters", type=int, required=True)
     parser.add_argument("-B", "--batch_size", help="Batch size used to train the model", type=int, required=True)
     parser.add_argument("-D", "--dataset", help="Dataset used to train the model", type=str, required=True)
+    parser.add_argument("-m", "--model_order", help="Order of the model", type=int)
     
     # Analysis parameters
     parser.add_argument("-Ns", "--Nsamples", help="Number of sample batches to analyze", type=int, default=1)
@@ -156,9 +157,9 @@ def main():
     config.DEVICE = args.device
     
     # Model type string for paths
-    type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_index{:d}/'.format(
+    type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_mo{:d}_index{:d}/'.format(
         config.DATASET, args.img_size, config.n_images, args.nbase, 
-        config.OPTIM, config.BATCH_SIZE, config.LR, args.index
+        config.OPTIM, config.BATCH_SIZE, config.LR, args.model_order, args.index
     )
     
     # Create output directory and file
@@ -170,7 +171,8 @@ def main():
     
     # Define training times to analyze
     training_times = cfg.get_training_times()
-    
+    training_times = training_times[training_times > 200000]
+
     print(f"Computing memorization fraction for {len(training_times)} checkpoints...")
     print(f"Model: {type_model}")
     print(f"Output file: {file_fc}")

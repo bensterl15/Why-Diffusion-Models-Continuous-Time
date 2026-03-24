@@ -22,6 +22,7 @@ parser.add_argument("-LR", "--learning_rate", help="Learning rate for optimizati
 parser.add_argument("-O", "--optim", help="Optimisation type (SGD_Momentum or Adam)", type=str)
 parser.add_argument("-W", "--nbase", help="Number of base filters", type=str)
 parser.add_argument("-t", "--time", help="Diffusion timestep", type=int)
+parser.add_argument("-m", "--model_order", help="Order of the model", type=int)
 parser.add_argument("-B", "--batch_size", type=int,
                     help="Batch size used to train the model")
 parser.add_argument('-D', '--dataset', type=str,
@@ -38,6 +39,7 @@ config = cfg.load_config(DATASET)   # Load base config for this dataset
 n_base = int(args.nbase)
 config.DEVICE = args.device
 config.n_images = int(args.num)
+model_order = int(args.model_order)
 Nsamples = int(args.Nsamples)
 size = int(args.img_size)
 config.OPTIM = args.optim
@@ -56,12 +58,12 @@ df = Diffusion.DiffusionConfig(
 )
 
 # Load model on the device
-type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_index{:d}/'.format(config.DATASET, size,
+type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_mo{:d}_index{:d}/'.format(config.DATASET, size,
                                      config.n_images, n_base, config.OPTIM, config.BATCH_SIZE,
-                                     config.LR, index)
+                                     config.LR, config.model_order, index)
 
 model_diffusion = Unet.UNet(
-    input_channels          = config.IMG_SHAPE[0],
+    input_channels          = model_order * config.IMG_SHAPE[0],
     output_channels         = config.IMG_SHAPE[0],
     base_channels           = n_base,
     base_channels_multiples = (1, 2, 4),
@@ -109,14 +111,23 @@ for (j, checkpoint_id) in enumerate(training_times):
 
     print('Sample {:d}/{:d}'.format(i, Ns))
 
-    samples_gen, samples_init = Diffusion.sample_diffusion_from_noise_DDIM(model_diffusion,
+    stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index{index}.pt"), map_location=config.DEVICE)
+    config.mean = stats["mean"]
+    config.std = stats["std"]
+
+    samples_gen, samples_init = Diffusion.sample_diffusion_from_noise(model_diffusion,
                                         n_images=batch_gen,
                                         config=config,
                                         df=df,
-                                        dim=4,
-                                        eta=0.0,            # Deterministic trajectories
-                                        ddim_steps=100)     # Number of steps reduced (much faster)
-    
+                                        dim=4)
+    #                                    eta=0.0,            # Deterministic trajectories
+    #                                    ddim_steps=100)     # Number of steps reduced (much faster)
+    # Convert from standardized space back to raw data space
+    if getattr(config, "STANDARDIZE", False):
+        mean = torch.as_tensor(config.mean, device=samples_gen.device)[..., None, None]
+        std  = torch.as_tensor(config.std,  device=samples_gen.device)[..., None, None]
+        samples_gen = samples_gen * std + mean
+
     # Save initial samples
     path = path_save + str(config.TIMESTEPS)
     # Create dir if does not exist

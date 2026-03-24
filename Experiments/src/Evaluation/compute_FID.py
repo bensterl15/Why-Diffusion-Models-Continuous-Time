@@ -38,6 +38,7 @@ def parse_arguments():
     parser.add_argument("-W", "--nbase", help="Number of base filters", type=int, required=True)
     parser.add_argument("-B", "--batch_size", help="Batch size used to train the model", type=int, required=True)
     parser.add_argument("-D", "--dataset", help="Dataset used to train the model", type=str, required=True)
+    parser.add_argument("-m", "--model_order", help="Order of the model", type=int)
     parser.add_argument("-istat", "--id_stat", help="Index of the reference statistics (1 to 5)", type=int, required=True)
     
     # Analysis parameters
@@ -156,14 +157,14 @@ def main():
     config.DEVICE = args.device
     
     # Model type string for paths
-    type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_index{:d}/'.format(
+    type_model = '{:s}{:d}_{:d}_{:d}_{:s}_{:d}_{:.4f}_mo{:d}_index{:d}/'.format(
         config.DATASET, args.img_size, config.n_images, args.nbase, 
-        config.OPTIM, config.BATCH_SIZE, config.LR, args.index
+        config.OPTIM, config.BATCH_SIZE, config.LR, args.model_order, args.index
     )
     
     # Define training times to analyze
     training_times = cfg.get_training_times()
-    training_times = training_times[training_times > 585000]
+    training_times = training_times[training_times > 200000]
 
     # Load training data (for consistency, though not used in FID computation)
     train_images, _ = cfg.load_training_data(config, args.index)
