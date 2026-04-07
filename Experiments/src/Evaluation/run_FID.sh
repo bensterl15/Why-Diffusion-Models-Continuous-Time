@@ -1,6 +1,6 @@
 nohup python compute_FID.py \
   -D CelebA \
-  -n 2048 \
+  -n 1024 \
   -i 0 \
   -s 32 \
   -LR 0.0001 \
@@ -10,4 +10,4 @@ nohup python compute_FID.py \
   -m 2 \
   -istat 1 \
   --device cuda:0 \
-  > celeba_FID.log 2>&1 &
+  > celeba_FID256.log 2>&1 &

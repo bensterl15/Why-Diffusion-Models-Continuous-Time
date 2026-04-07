@@ -194,7 +194,7 @@ def sample_diffusion_from_noise(model, n_images=25, config=TrainingConfig(),
     model.eval()
     dt = torch.tensor(hold_T / N_STEPS, device=config.DEVICE, dtype=torch.float32)
     d_coef = 2 * xi * L_inv * dt
-    for t in reversed(range(1, N_STEPS + 1)):
+    for t in tqdm(reversed(range(1, N_STEPS + 1))):
         # Time tensor
         ts = torch.ones(n_images, dtype=torch.long, device=config.DEVICE) * hold_T * t / N_STEPS
 
@@ -222,10 +222,10 @@ def train_one_batch(Q, model, optimizer, loss_fn,
                     df=DiffusionConfig()):
     model.train()
     batch_size = Q.shape[0]
-    shape = (batch_size, n-1, *data_shape)
-    noise = alpha * L_inv * torch.randn(shape, device=device)
-    X = torch.cat((Q[:, None, ...], noise), dim=1)
-
+    # In this project, we initialize all random noise at the start, so Q is really X
+    #B, n_, C, H, W = Q.shape
+    X = Q
+    
     # Generate random times (continuous uniform in [0,1))
     t = hold_T * torch.rand((X.shape[0], 1), device=config.DEVICE)
     
@@ -238,15 +238,24 @@ def train_one_batch(Q, model, optimizer, loss_fn,
 
     # Extract noisy images from times t
     X_t, noise_t, L_t = forward_diffusion(df, X, expFt, config)
+    X_t = X_t.to(torch.float32)
     X_t = X_t.to(device)
     
     # Apply the model
-    score = model(X_t.view(-1, n, 32, 32).float(), t.view(-1))
+    if config.DATASET == "CelebA":
+        score = model(X_t.view(-1, n, 32, 32).float(), t.view(-1))
+    else:
+        #print(X_t.shape, flush=True)
+        #exit()
+        score = model(X_t.view(-1, n*8), t.view(-1))
+
     est = torch.einsum("b...,b->b...",
                     score,
                     -L_t[:, -1, -1])
     noise_t = noise_t[:, -1]
-    noise_t = noise_t.view(-1, 1, 32, 32)
+    
+    if config.DATASET == "CelebA":
+        noise_t = noise_t.view(-1, 1, 32, 32)
     
     # The loss is comparing the predicted and true noises
     loss = loss_fn(noise_t, est)

@@ -75,11 +75,17 @@ model_diffusion.to(config.DEVICE)
 print('Generating {:d} samples'.format(Nsamples))
 
 # Generate samples
-batch_gen = 10000
+batch_gen = 1024 #10000
 Ns = Nsamples // batch_gen
 
 # Define the training times to sample models
 training_times = cfg.get_training_times()
+
+stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index{index}.pt"), map_location=config.DEVICE)
+config.mean = stats["mean"]
+config.std = stats["std"]
+mean = torch.as_tensor(config.mean, device='cuda:0')[..., None, None]
+std  = torch.as_tensor(config.std,  device='cuda:0')[..., None, None]
 
 # Loop over training times
 for (j, checkpoint_id) in enumerate(training_times):
@@ -111,9 +117,9 @@ for (j, checkpoint_id) in enumerate(training_times):
 
     print('Sample {:d}/{:d}'.format(i, Ns))
 
-    stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index{index}.pt"), map_location=config.DEVICE)
-    config.mean = stats["mean"]
-    config.std = stats["std"]
+    #stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index{index}.pt"), map_location=config.DEVICE)
+    #config.mean = stats["mean"]
+    #config.std = stats["std"]
 
     samples_gen, samples_init = Diffusion.sample_diffusion_from_noise(model_diffusion,
                                         n_images=batch_gen,
@@ -123,10 +129,10 @@ for (j, checkpoint_id) in enumerate(training_times):
     #                                    eta=0.0,            # Deterministic trajectories
     #                                    ddim_steps=100)     # Number of steps reduced (much faster)
     # Convert from standardized space back to raw data space
-    if getattr(config, "STANDARDIZE", False):
-        mean = torch.as_tensor(config.mean, device=samples_gen.device)[..., None, None]
-        std  = torch.as_tensor(config.std,  device=samples_gen.device)[..., None, None]
-        samples_gen = samples_gen * std + mean
+    #if getattr(config, "STANDARDIZE", False):
+        #mean = torch.as_tensor(config.mean, device=samples_gen.device)[..., None, None]
+        #std  = torch.as_tensor(config.std,  device=samples_gen.device)[..., None, None]
+    samples_gen = samples_gen * std + mean
 
     # Save initial samples
     path = path_save + str(config.TIMESTEPS)

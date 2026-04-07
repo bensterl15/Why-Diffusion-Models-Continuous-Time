@@ -28,6 +28,7 @@ parser.add_argument("-de", "--d_embed", help="Width of the neural network", type
 parser.add_argument("-O", "--optim", help="Optimisation type", type=str) # Adam or SGD_Momentum
 parser.add_argument("-B", "--bs", help="Batch size", type=int)
 parser.add_argument("-t", "--time", help="Diffusion timestep", type=int)
+parser.add_argument("-m", "--model_order", help="Order of the model", type=int)
 args = vars(parser.parse_args())
 print(args)
 
@@ -40,6 +41,7 @@ optim = args['optim']
 device = 'cuda:0'
 batch_size = args['bs']
 time_step = args['time']
+model_order = args['model_order']
 if time_step == -1:
     mode = 'normal'
 else:
@@ -48,6 +50,7 @@ else:
 # Overwrite config file
 config = Diffusion.TrainingConfig()
 DATASET = 'GMM'
+config.model_order = model_order
 config.DATASET = DATASET
 config.n_images = n
 config.IMG_SHAPE = (1, d)
@@ -84,7 +87,15 @@ trainset = X_train.to(torch.float32).to(device)
 train_loader = DataLoader(trainset, batch_size=batch_size, shuffle=True)
 
 # In[] Model definition
-model = TM.SimpleTimeModel(d=d, d_model=n_base).to(device)
+#model = TM.SimpleTimeModel(d=d*model_order, d_model=n_base).to(device)
+d_feat = d              # 8
+n_channels = model_order  # 2
+model = TM.SimpleTimeModel(
+    d_in=d_feat * n_channels,  # 16
+    d_out=d_feat,              # 8
+    d_model=n_base
+).to(device)
+
 n_params = sum(p.numel() for p in model.parameters())
 print('Total number of parameters = {:.2f}K'.format(n_params/1e3))
 
@@ -104,10 +115,11 @@ if __name__ == '__main__':
     loss_fn = nn.MSELoss()
     
     sweeping = 1.0
-    times_save1 = np.arange(0, 5000, 250).astype(int)
-    times_save2 = np.arange(5000, config.N_STEPS, 5000).astype(int)
-    times_save = np.hstack((times_save1, times_save2))
-    
+    #times_save1 = np.arange(0, 5000, 250).astype(int)
+    #times_save2 = np.arange(5000, config.N_STEPS, 5000).astype(int)
+    #times_save = np.hstack((times_save1, times_save2))
+    times_save = np.arange(0, 4_000_000 + 1, 250, dtype=int)
+
     offset = 0
     Diffusion.train(model, train_loader, optimizer, config, df, 
                     loss_fn, sweeping, times_save, offset, suffix)

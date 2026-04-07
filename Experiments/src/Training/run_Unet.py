@@ -87,10 +87,30 @@ os.system('cp ../Utils/cfg.py {:s}'.format(path_models + '_cfg.py'))
 #     train_images[i, :, :] = trainset[i]
 # train_images = train_images.to(config.DEVICE)
 
+L_inv = 1.0
+alpha = 0.08
+data_shape = (1, 32, 32,)
+
+## Add permanent auxiliary noise per sample here:
 # Torch Tensor version
 train_images, testset = cfg.load_training_data(config, index, loadtest=False)
 
-# In[]
+def dataset_to_tensor(ds):
+    batch = []
+    for i in range(len(ds)):
+        batch.append(ds[i])
+    return torch.stack(batch)
+
+train_images = dataset_to_tensor(train_images)
+
+def append_noise(Q):
+    batch_size = Q.shape[0]
+    shape = (batch_size, model_order-1, *data_shape)
+    noise = alpha * L_inv * torch.randn(shape, device=Q.device)
+    return torch.cat((Q[:, None, ...], noise), dim=1)
+
+train_images = append_noise(train_images)
+##
 
 if __name__ == '__main__':
     trainloader = torch.utils.data.DataLoader(train_images, 
@@ -107,7 +127,7 @@ if __name__ == '__main__':
 dataiter = iter(trainloader)
 images = next(dataiter)
 
-Plot.imshow(images[0:64].cpu(), config.mean, config.std)
+Plot.imshow(images[0:64, 0].cpu(), config.mean, config.std)
 plt.savefig(path_images + 'Training_set.pdf', 
             bbox_inches='tight')
 

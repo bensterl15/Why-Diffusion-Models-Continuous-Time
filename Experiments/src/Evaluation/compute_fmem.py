@@ -20,7 +20,6 @@ import cfg
 
 warnings.filterwarnings("ignore")
 
-
 def bootstrap_mean_se(data, threshold, n_bootstrap=1000, random_state=None):
     """
     Compute bootstrap estimate of the mean and its standard error for values below a threshold.
@@ -171,7 +170,7 @@ def main():
     
     # Define training times to analyze
     training_times = cfg.get_training_times()
-    training_times = training_times[training_times > 200000]
+    training_times = training_times[training_times > 1853000]
 
     print(f"Computing memorization fraction for {len(training_times)} checkpoints...")
     print(f"Model: {type_model}")
@@ -181,6 +180,13 @@ def main():
     train_images, _ = cfg.load_training_data(config, args.index)
     train_images = train_images[:config.n_images, :, :, :].to(config.DEVICE)
     
+    stats = torch.load(os.path.join(config.path_save, f"celeba_stats_index0.pt"), map_location=config.DEVICE)
+    config.mean = stats["mean"]
+    config.std = stats["std"]
+    mean = torch.as_tensor(config.mean, device='cuda:0')[..., None, None]
+    std  = torch.as_tensor(config.std,  device='cuda:0')[..., None, None]
+    train_images = train_images * std + mean
+
     # Setup diffusion configuration
     df = dm.DiffusionConfig(
         n_steps=config.TIMESTEPS,
